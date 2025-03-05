@@ -1,4 +1,4 @@
-# Java-3Semestre-Unimax
+
 
 Como seu app será usado em todo o Brasil, o ideal é armazenar os dados dos usuários em um banco de dados remoto e acessá-lo através de uma API REST. Assim, o cadastro e login podem ser acessados de qualquer lugar.
 
@@ -871,5 +871,82 @@ python3 app.py
 Agora você tem um sistema de login e cadastro funcional no Android Studio, conectado à API Flask na Raspberry Pi! 🚀
 
 Se precisar de mais detalhes, me avise!
+
+
+
+
+
+Sem cabo Ethernet, podemos tentar restaurar o Wi-Fi seguindo estas etapas:
+
+1. Desativar o Hostapd (Access Point)
+
+Se o serviço hostapd estiver ativo, ele pode estar bloqueando o uso do Wi-Fi para se conectar à internet. Vamos desativá-lo temporariamente:
+
+sudo systemctl stop hostapd
+sudo systemctl disable hostapd
+sudo systemctl stop dnsmasq
+sudo systemctl disable dnsmasq
+
+
+---
+
+2. Restaurar as Configurações de Rede para Conectar ao Wi-Fi
+
+Edite o arquivo de configuração do wpa_supplicant para se conectar à sua rede Wi-Fi:
+
+sudo nano /etc/wpa_supplicant/wpa_supplicant.conf
+
+Adicione as informações da sua rede:
+
+country=BR
+ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+
+network={
+    ssid="NomeDaSuaRedeWiFi"
+    psk="SenhaDaSuaRedeWiFi"
+    key_mgmt=WPA-PSK
+}
+
+Salve o arquivo e saia (Ctrl + O, Enter, Ctrl + X).
+
+
+---
+
+3. Reiniciar o Serviço de Rede
+
+sudo systemctl restart dhcpcd
+sudo wpa_supplicant -B -i wlan0 -c /etc/wpa_supplicant/wpa_supplicant.conf
+sudo dhclient wlan0
+
+Verifique se o Wi-Fi se conectou corretamente:
+
+ip a
+
+
+---
+
+4. Testar a Conexão com a Internet
+
+Verifique se a Raspberry Pi consegue acessar a internet:
+
+ping google.com
+
+Se o ping funcionar, você pode atualizar e instalar pacotes normalmente:
+
+sudo apt update
+sudo apt install <nome-do-pacote>
+
+
+---
+
+5. Reiniciar a Raspberry Pi (Opcional)
+
+sudo reboot
+
+
+---
+
+Se ainda não tiver sucesso, me avise e podemos tentar outra abordagem!
 
 
