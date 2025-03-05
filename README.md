@@ -950,3 +950,200 @@ sudo reboot
 Se ainda não tiver sucesso, me avise e podemos tentar outra abordagem!
 
 
+
+Sim, podemos adicionar uma função de teste local para as telas de login e cadastro, sem precisar conectar ao servidor. Dessa forma, você poderá testar a navegação e validação de campos diretamente no aplicativo.
+
+
+---
+
+1️⃣ Tela de Cadastro (Teste Local)
+
+activity_cadastro.xml
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/editNome"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Nome" />
+
+    <EditText
+        android:id="@+id/editEmail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="E-mail"
+        android:inputType="textEmailAddress" />
+
+    <EditText
+        android:id="@+id/editSenha"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Senha"
+        android:inputType="textPassword" />
+
+    <Button
+        android:id="@+id/btnCadastrar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Cadastrar" />
+</LinearLayout>
+
+
+---
+
+CadastroActivity.kt (Simulação Local)
+
+package com.example.app
+
+import android.content.Intent
+import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+
+class CadastroActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_cadastro)
+
+        val editNome = findViewById<EditText>(R.id.editNome)
+        val editEmail = findViewById<EditText>(R.id.editEmail)
+        val editSenha = findViewById<EditText>(R.id.editSenha)
+        val btnCadastrar = findViewById<Button>(R.id.btnCadastrar)
+
+        btnCadastrar.setOnClickListener {
+            val nome = editNome.text.toString().trim()
+            val email = editEmail.text.toString().trim()
+            val senha = editSenha.text.toString().trim()
+
+            if (nome.isEmpty() || email.isEmpty() || senha.isEmpty()) {
+                Toast.makeText(this, "Preencha todos os campos!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Cadastro simulado com sucesso!", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, LoginActivity::class.java))
+                finish()
+            }
+        }
+    }
+}
+
+
+---
+
+2️⃣ Tela de Login (Teste Local)
+
+activity_login.xml
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/editEmail"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="E-mail"
+        android:inputType="textEmailAddress" />
+
+    <EditText
+        android:id="@+id/editSenha"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Senha"
+        android:inputType="textPassword" />
+
+    <Button
+        android:id="@+id/btnLogin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Entrar" />
+</LinearLayout>
+
+
+---
+
+LoginActivity.kt (Simulação Local)
+
+package com.example.app
+
+import android.content.Intent
+import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+
+class LoginActivity : AppCompatActivity() {
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_login)
+
+        val editEmail = findViewById<EditText>(R.id.editEmail)
+        val editSenha = findViewById<EditText>(R.id.editSenha)
+        val btnLogin = findViewById<Button>(R.id.btnLogin)
+
+        btnLogin.setOnClickListener {
+            val email = editEmail.text.toString().trim()
+            val senha = editSenha.text.toString().trim()
+
+            if (email.isEmpty() || senha.isEmpty()) {
+                Toast.makeText(this, "Preencha todos os campos!", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, "Login simulado com sucesso!", Toast.LENGTH_SHORT).show()
+                startActivity(Intent(this, DashboardActivity::class.java))
+                finish()
+            }
+        }
+    }
+}
+
+
+---
+
+3️⃣ Navegação e Teste
+
+AndroidManifest.xml
+
+<activity android:name=".CadastroActivity" />
+<activity android:name=".LoginActivity">
+    <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+    </intent-filter>
+</activity>
+<activity android:name=".DashboardActivity" />
+
+
+---
+
+4️⃣ Testando o Fluxo Local
+
+1. Inicie o app no emulador ou dispositivo real.
+
+
+2. Preencha os campos corretamente e veja se a navegação funciona.
+
+
+3. Deixe os campos vazios para testar as mensagens de erro.
+
+
+
+
+---
+
+📌 Conclusão
+
+Com esse código, você consegue testar a navegação e validação de campos sem precisar do servidor. Quando estiver tudo certo, podemos substituir a lógica de teste local pela integração com a API Flask.
+
+Se precisar de ajuda para conectar ao servidor futuramente, só falar!
+
