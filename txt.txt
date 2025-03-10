@@ -1,0 +1,251 @@
+Para estabelecer uma conexão Bluetooth entre o Android e a Raspberry Pi Zero 2 W, permitindo o envio de comandos para o WellWatch 670, você precisa:
+
+1. Parear o dispositivo Android com a Raspberry Pi via Bluetooth.
+
+
+2. Enviar comandos via Bluetooth Serial do app Android para a Raspberry Pi.
+
+
+3. Repassar os comandos da Raspberry Pi para o WellWatch 670 via conexão RS-232.
+
+
+4. Receber e exibir respostas no app Android.
+
+
+
+
+---
+
+1️⃣ Configurar a Raspberry Pi para Bluetooth Serial
+
+Passos na Raspberry Pi
+
+1. Instale dependências:
+
+
+
+sudo apt update
+sudo apt install bluez python3-bluez minicom -y
+
+2. Ative o Bluetooth Serial:
+
+
+
+sudo systemctl enable hciuart
+sudo systemctl start hciuart
+
+3. Parear a Raspberry Pi com o Android:
+
+
+
+sudo bluetoothctl
+power on
+agent on
+scan on
+# Espere o dispositivo aparecer e copie o endereço MAC
+pair XX:XX:XX:XX:XX:XX
+trust XX:XX:XX:XX:XX:XX
+connect XX:XX:XX:XX:XX:XX
+
+4. Configurar porta serial:
+
+
+
+sudo rfcomm bind /dev/rfcomm0 XX:XX:XX:XX:XX:XX
+
+
+---
+
+2️⃣ Aplicativo Android: Comunicação Bluetooth
+
+Adicionar Permissões no Manifest
+
+<uses-permission android:name="android.permission.BLUETOOTH" />
+<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+<uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+
+---
+
+Interface da Tela de Comunicação (activity_medicao.xml)
+
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <EditText
+        android:id="@+id/editCommand"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Digite o comando" />
+
+    <Button
+        android:id="@+id/btnEnviar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enviar Comando" />
+
+    <TextView
+        android:id="@+id/textResposta"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Resposta do WellWatch"
+        android:textSize="18sp" />
+</LinearLayout>
+
+
+---
+
+Código da Activity para Envio de Comandos (MedicaoActivity.kt)
+
+package com.example.app
+
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothSocket
+import android.os.Bundle
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
+import java.util.UUID
+
+class MedicaoActivity : AppCompatActivity() {
+
+    private val DEVICE_ADDRESS = "XX:XX:XX:XX:XX:XX" // Endereço MAC da Raspberry Pi
+    private val UUID_SERIAL = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+
+    private var bluetoothSocket: BluetoothSocket? = null
+    private var outputStream: OutputStream? = null
+    private var inputStream: InputStream? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_medicao)
+
+        val editCommand = findViewById<EditText>(R.id.editCommand)
+        val btnEnviar = findViewById<Button>(R.id.btnEnviar)
+        val textResposta = findViewById<TextView>(R.id.textResposta)
+
+        btnEnviar.setOnClickListener {
+            val command = editCommand.text.toString().trim()
+            if (command.isNotEmpty()) {
+                enviarComando(command, textResposta)
+            } else {
+                Toast.makeText(this, "Digite um comando!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        conectarDispositivoBluetooth()
+    }
+
+    private fun conectarDispositivoBluetooth() {
+        val bluetoothAdapter = BluetoothAdapter.getDefaultAdapter()
+        val device: BluetoothDevice? = bluetoothAdapter.getRemoteDevice(DEVICE_ADDRESS)
+
+        try {
+            bluetoothSocket = device?.createRfcommSocketToServiceRecord(UUID_SERIAL)
+            bluetoothSocket?.connect()
+            outputStream = bluetoothSocket?.outputStream
+            inputStream = bluetoothSocket?.inputStream
+            Toast.makeText(this, "Conectado ao dispositivo!", Toast.LENGTH_SHORT).show()
+        } catch (e: IOException) {
+            e.printStackTrace()
+            Toast.makeText(this, "Falha na conexão Bluetooth", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun enviarComando(comando: String, textResposta: TextView) {
+        try {
+            outputStream?.write((comando + "\n").toByteArray())
+            textResposta.text = "Comando enviado: $comando"
+            
+            // Lê a resposta do WellWatch pela Raspberry Pi
+            val buffer = ByteArray(1024)
+            val bytesLidos = inputStream?.read(buffer) ?: 0
+            val resposta = String(buffer, 0, bytesLidos)
+            textResposta.text = "Resposta: $resposta"
+
+        } catch (e: IOException) {
+            e.printStackTrace()
+            textResposta.text = "Erro ao enviar comando!"
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            bluetoothSocket?.close()
+        } catch (e: IOException) {
+            e.printStackTrace()
+        }
+    }
+}
+
+
+---
+
+3️⃣ Configuração na Raspberry Pi para Receber Comandos
+
+Script Python na Raspberry Pi (receiver.py)
+
+import serial
+
+# Configuração da porta serial (conexão com WellWatch 670)
+ser = serial.Serial('/dev/ttyS0', 9600, timeout=1) 
+
+# Simulação de leitura da conexão Bluetooth
+while True:
+    try:
+        # Lê o comando recebido pela conexão serial do Bluetooth
+        comando = ser.readline().decode('utf-8').strip()
+        if comando:
+            print(f"Comando recebido: {comando}")
+            
+            # Simula o envio de um comando para o WellWatch 670 e a resposta
+            resposta = f"Resposta simulada para: {comando}\n"
+            ser.write(resposta.encode('utf-8'))
+
+    except Exception as e:
+        print(f"Erro: {e}")
+
+
+---
+
+4️⃣ Testando a Conexão
+
+1. Inicie o script receiver.py na Raspberry Pi.
+
+
+2. No app Android, envie um comando e veja a resposta no TextView.
+
+
+3. Confira se o comando foi recebido no terminal da Raspberry Pi.
+
+
+
+
+---
+
+📌 Dicas Úteis
+
+Se a conexão Bluetooth falhar, verifique o pareamento na Raspberry Pi.
+
+Teste comandos básicos como AT para validar a comunicação serial.
+
+Adicione logs e depuração no Android para facilitar o diagnóstico de problemas.
+
+
+
+---
+
+Se precisar de ajuda para ajustar comandos específicos ou depurar erros, só falar!
+
