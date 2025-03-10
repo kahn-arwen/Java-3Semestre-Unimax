@@ -1,62 +1,111 @@
-Para estabelecer uma conexão Bluetooth entre o Android e a Raspberry Pi Zero 2 W, permitindo o envio de comandos para o WellWatch 670, você precisa:
-
-1. Parear o dispositivo Android com a Raspberry Pi via Bluetooth.
-
-
-2. Enviar comandos via Bluetooth Serial do app Android para a Raspberry Pi.
-
-
-3. Repassar os comandos da Raspberry Pi para o WellWatch 670 via conexão RS-232.
-
-
-4. Receber e exibir respostas no app Android.
-
-
+A Raspberry Pi Zero 2 W já vem com o Bluetooth integrado, mas o serviço hciuart não é necessário nas versões mais recentes do Raspberry Pi OS, especialmente se você estiver usando o Bluetooth interno. Vamos reconfigurar e conectar o Bluetooth corretamente:
 
 
 ---
 
-1️⃣ Configurar a Raspberry Pi para Bluetooth Serial
+1️⃣ Preparar a Raspberry Pi para o Bluetooth
 
-Passos na Raspberry Pi
-
-1. Instale dependências:
-
-
+Atualizar o Sistema
 
 sudo apt update
-sudo apt install bluez python3-bluez minicom -y
+sudo apt upgrade -y
 
-2. Ative o Bluetooth Serial:
+Instalar Dependências do Bluetooth
+
+sudo apt install bluetooth bluez bluez-tools rfcomm python3-bluez -y
+
+Ativar e Iniciar o Bluetooth
+
+sudo systemctl enable bluetooth
+sudo systemctl start bluetooth
+
+Verificar o Status do Bluetooth
+
+sudo systemctl status bluetooth
+
+Deve mostrar algo como active (running).
 
 
+---
 
-sudo systemctl enable hciuart
-sudo systemctl start hciuart
+2️⃣ Parear a Raspberry Pi com o Celular via Bluetooth
 
-3. Parear a Raspberry Pi com o Android:
-
-
+Entrar no Modo de Controle Bluetooth
 
 sudo bluetoothctl
+
+Comandos no bluetoothctl
+
 power on
 agent on
+default-agent
 scan on
-# Espere o dispositivo aparecer e copie o endereço MAC
+
+Espere o dispositivo aparecer e copie o endereço MAC (formato XX:XX:XX:XX:XX:XX).
+
 pair XX:XX:XX:XX:XX:XX
 trust XX:XX:XX:XX:XX:XX
 connect XX:XX:XX:XX:XX:XX
 
-4. Configurar porta serial:
-
-
+Criar uma Porta Serial Bluetooth
 
 sudo rfcomm bind /dev/rfcomm0 XX:XX:XX:XX:XX:XX
 
 
 ---
 
-2️⃣ Aplicativo Android: Comunicação Bluetooth
+3️⃣ Configurar o Bluetooth Serial para Comunicação com o WellWatch
+
+Conectar a Porta Serial (RS-232) do WellWatch
+
+Verifique qual porta a Raspberry usa para o WellWatch:
+
+ls /dev/serial*
+
+Supondo que a porta seja /dev/ttyS0.
+
+
+---
+
+4️⃣ Script Python para Comunicação Serial com o WellWatch
+
+Crie um script Python na Raspberry Pi chamado wellwatch_receiver.py:
+
+import serial
+
+# Configuração das portas seriais
+bluetooth = serial.Serial('/dev/rfcomm0', 9600, timeout=1)  # Comunicação com o Android
+wellwatch = serial.Serial('/dev/ttyS0', 9600, timeout=1)    # Comunicação com o WellWatch
+
+print("Aguardando comandos via Bluetooth...")
+
+while True:
+    try:
+        # Lê o comando enviado pelo app Android
+        if bluetooth.in_waiting > 0:
+            comando = bluetooth.readline().decode('utf-8').strip()
+            print(f"Comando recebido: {comando}")
+
+            # Envia o comando para o WellWatch
+            wellwatch.write((comando + "\n").encode('utf-8'))
+
+            # Lê a resposta do WellWatch e envia de volta via Bluetooth
+            if wellwatch.in_waiting > 0:
+                resposta = wellwatch.readline().decode('utf-8').strip()
+                bluetooth.write((resposta + "\n").encode('utf-8'))
+                print(f"Resposta enviada: {resposta}")
+
+    except Exception as e:
+        print(f"Erro: {e}")
+
+Executar o Script
+
+python3 wellwatch_receiver.py
+
+
+---
+
+5️⃣ No Aplicativo Android: Comunicação Bluetooth
 
 Adicionar Permissões no Manifest
 
@@ -65,9 +114,6 @@ Adicionar Permissões no Manifest
 <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
 <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-
-
----
 
 Interface da Tela de Comunicação (activity_medicao.xml)
 
@@ -100,7 +146,7 @@ Interface da Tela de Comunicação (activity_medicao.xml)
 
 ---
 
-Código da Activity para Envio de Comandos (MedicaoActivity.kt)
+Activity Kotlin para Envio de Comandos Bluetooth
 
 package com.example.app
 
@@ -120,7 +166,7 @@ import java.util.UUID
 
 class MedicaoActivity : AppCompatActivity() {
 
-    private val DEVICE_ADDRESS = "XX:XX:XX:XX:XX:XX" // Endereço MAC da Raspberry Pi
+    private val DEVICE_ADDRESS = "XX:XX:XX:XX:XX:XX" // MAC da Raspberry Pi
     private val UUID_SERIAL = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
 
     private var bluetoothSocket: BluetoothSocket? = null
@@ -166,9 +212,7 @@ class MedicaoActivity : AppCompatActivity() {
     private fun enviarComando(comando: String, textResposta: TextView) {
         try {
             outputStream?.write((comando + "\n").toByteArray())
-            textResposta.text = "Comando enviado: $comando"
-            
-            // Lê a resposta do WellWatch pela Raspberry Pi
+
             val buffer = ByteArray(1024)
             val bytesLidos = inputStream?.read(buffer) ?: 0
             val resposta = String(buffer, 0, bytesLidos)
@@ -193,59 +237,20 @@ class MedicaoActivity : AppCompatActivity() {
 
 ---
 
-3️⃣ Configuração na Raspberry Pi para Receber Comandos
+Testando a Comunicação
 
-Script Python na Raspberry Pi (receiver.py)
-
-import serial
-
-# Configuração da porta serial (conexão com WellWatch 670)
-ser = serial.Serial('/dev/ttyS0', 9600, timeout=1) 
-
-# Simulação de leitura da conexão Bluetooth
-while True:
-    try:
-        # Lê o comando recebido pela conexão serial do Bluetooth
-        comando = ser.readline().decode('utf-8').strip()
-        if comando:
-            print(f"Comando recebido: {comando}")
-            
-            # Simula o envio de um comando para o WellWatch 670 e a resposta
-            resposta = f"Resposta simulada para: {comando}\n"
-            ser.write(resposta.encode('utf-8'))
-
-    except Exception as e:
-        print(f"Erro: {e}")
+1. Na Raspberry Pi, inicie o script wellwatch_receiver.py.
 
 
----
-
-4️⃣ Testando a Conexão
-
-1. Inicie o script receiver.py na Raspberry Pi.
+2. No app Android, envie um comando e veja se a resposta aparece na tela.
 
 
-2. No app Android, envie um comando e veja a resposta no TextView.
-
-
-3. Confira se o comando foi recebido no terminal da Raspberry Pi.
+3. Monitore o terminal da Raspberry Pi para verificar se o comando foi recebido.
 
 
 
 
 ---
 
-📌 Dicas Úteis
-
-Se a conexão Bluetooth falhar, verifique o pareamento na Raspberry Pi.
-
-Teste comandos básicos como AT para validar a comunicação serial.
-
-Adicione logs e depuração no Android para facilitar o diagnóstico de problemas.
-
-
-
----
-
-Se precisar de ajuda para ajustar comandos específicos ou depurar erros, só falar!
+Se precisar de mais detalhes ou ajuda para ajustar o fluxo, me avise!
 
