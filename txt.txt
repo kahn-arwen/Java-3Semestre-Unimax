@@ -1,3 +1,94 @@
+O erro **"Failed to connect to SDP server on FF:FF:FF:00:00:00: connection refused"** indica que o serviço SDP ainda não está rodando corretamente. Vamos resolver isso passo a passo.
+
+---
+
+## **1️⃣ Verificar se o Bluetooth está Ativo**
+Antes de tudo, cheque se o Bluetooth está rodando corretamente:
+
+```bash
+systemctl status bluetooth
+```
+Se não estiver **ativo (running)**, inicie manualmente:
+
+```bash
+sudo systemctl start bluetooth
+```
+E para garantir que inicie automaticamente no boot:
+
+```bash
+sudo systemctl enable bluetooth
+```
+
+Agora, rode novamente:
+
+```bash
+sdptool browse local
+```
+
+Se ainda der erro, siga para o próximo passo.
+
+---
+
+## **2️⃣ Iniciar o Bluetooth com SDP Ativado**
+O SDP precisa ser ativado manualmente no serviço `bluetoothd`. Rode:
+
+```bash
+sudo bluetoothd -C &
+```
+Agora, adicione o perfil Serial Port Profile (SPP):
+
+```bash
+sudo sdptool add SP
+```
+E verifique se o SDP está funcionando:
+
+```bash
+sdptool browse local
+```
+
+Se continuar o erro, vá para o próximo passo.
+
+---
+
+## **3️⃣ Editar o Serviço do Bluetooth**
+Se o SDP não inicia automaticamente, edite o serviço Bluetooth:
+
+```bash
+sudo nano /lib/systemd/system/bluetooth.service
+```
+Procure esta linha:
+
+```
+ExecStart=/usr/libexec/bluetooth/bluetoothd
+```
+E altere para:
+
+```
+ExecStart=/usr/libexec/bluetooth/bluetoothd -C
+```
+Salve (`CTRL+X`, `Y`, `ENTER`) e reinicie o serviço:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart bluetooth
+```
+
+Agora, tente novamente:
+
+```bash
+sdptool browse local
+```
+
+Se ainda der erro, me avise para que possamos continuar a depuração! 🚀
+
+
+
+
+
+
+
+
+
 Parece que o serviço SDP (Service Discovery Protocol) não está rodando na sua Raspberry Pi. Sem ele, a Raspberry não consegue registrar o perfil SPP para comunicação serial via Bluetooth.
 
 
