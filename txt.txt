@@ -1,3 +1,83 @@
+Parece que o serviço SDP (Service Discovery Protocol) não está rodando na sua Raspberry Pi. Sem ele, a Raspberry não consegue registrar o perfil SPP para comunicação serial via Bluetooth.
+
+
+---
+
+🚀 Solução: Ativar o SDP e o Perfil SPP
+
+1️⃣ Iniciar o Servidor SDP Manualmente
+
+Rode este comando para iniciar o servidor SDP:
+
+sudo bluetoothd -C &
+
+Agora tente rodar novamente:
+
+sudo sdptool add SP
+
+Depois, cheque se o perfil foi adicionado:
+
+sdptool browse local
+
+Se o erro "Failed to connect to SDP server" ainda aparecer, siga para o próximo passo.
+
+
+---
+
+2️⃣ Criar Diretório /var/run/sdp e Corrigir Permissões
+
+Se o comando sdptool add SP falhar porque o diretório /var/run/sdp não existe, crie-o manualmente:
+
+sudo mkdir /var/run/sdp
+sudo chmod 777 /var/run/sdp
+
+Agora, tente novamente:
+
+sudo sdptool add SP
+sdptool browse local
+
+
+---
+
+3️⃣ Garantir que o SDP Sempre Inicie Automaticamente
+
+Se o SDP funcionou manualmente, mas você quer que ele inicie sempre que a Raspberry ligar, edite o serviço Bluetooth:
+
+sudo nano /lib/systemd/system/bluetooth.service
+
+Encontre esta linha:
+
+ExecStart=/usr/libexec/bluetooth/bluetoothd
+
+E altere para:
+
+ExecStart=/usr/libexec/bluetooth/bluetoothd -C
+
+Salve (CTRL+X, Y, ENTER) e reinicie o serviço:
+
+sudo systemctl daemon-reload
+sudo systemctl restart bluetooth
+
+Agora, tente verificar se o SDP está rodando:
+
+sdptool browse local
+
+Se o UUID 00001101-0000-1000-8000-00805f9b34fb (Serial Port Profile - SPP) aparecer, significa que agora o Android pode se conectar via Bluetooth Serial!
+
+
+---
+
+Se ainda tiver erro, me avise com a nova mensagem de erro para que eu possa te ajudar! 🚀
+
+
+
+
+
+
+
+
+
+
 A Raspberry Pi Zero 2 W já vem com o Bluetooth integrado, mas o serviço hciuart não é necessário nas versões mais recentes do Raspberry Pi OS, especialmente se você estiver usando o Bluetooth interno. Vamos reconfigurar e conectar o Bluetooth corretamente:
 
 
