@@ -254,3 +254,124 @@ Testando a Comunicação
 
 Se precisar de mais detalhes ou ajuda para ajustar o fluxo, me avise!
 
+
+
+
+
+
+
+
+O problema ainda é que a Raspberry Pi não está anunciando o perfil Serial Port Profile (SPP). Sem isso, o Android não vai reconhecê-la como um dispositivo Bluetooth serial. No seu bluetoothctl show, não aparece o UUID 00001101-0000-1000-8000-00805f9b34fb (SPP), então o Android só vê a Raspberry como um dispositivo de áudio.
+
+
+---
+
+🚀 Solução: Ativar o Bluetooth Serial (SPP)
+
+1️⃣ Ativar o Perfil SPP na Raspberry
+
+Abra o terminal e adicione o perfil SPP:
+
+sudo sdptool add SP
+
+Agora, verifique se ele foi ativado:
+
+bluetoothctl show
+
+Se o UUID 00001101-0000-1000-8000-00805f9b34fb não aparecer, reinicie o serviço Bluetooth:
+
+sudo systemctl restart bluetooth
+
+Depois, rode novamente:
+
+bluetoothctl show
+
+Se o perfil SPP ainda não aparecer, tente forçar a adição manualmente:
+
+sudo hciconfig hci0 class 0x1F00
+
+Agora, rode de novo:
+
+bluetoothctl show
+
+Se ainda assim não funcionar, reinicie a Raspberry Pi:
+
+sudo reboot
+
+
+---
+
+2️⃣ Configurar o Bluetooth para Aceitar Conexões
+
+1. Abra o terminal e rode:
+
+
+
+bluetoothctl
+
+2. No console do bluetoothctl, rode os seguintes comandos:
+
+
+
+discoverable on
+pairable on
+agent on
+default-agent
+
+Isso permite que o Android veja a Raspberry Pi como um dispositivo Bluetooth válido.
+
+
+---
+
+3️⃣ Criar o Canal Serial Bluetooth
+
+Agora, crie um canal serial Bluetooth que permita o Android se conectar via SPP:
+
+sudo rfcomm bind /dev/rfcomm0 XX:XX:XX:XX:XX:XX
+
+Substitua XX:XX:XX:XX:XX:XX pelo endereço Bluetooth do celular.
+Para encontrar o endereço, rode:
+
+bluetoothctl scan on
+
+Quando aparecer o celular, pegue o MAC address e use no comando acima.
+
+Agora, verifique se o canal foi criado corretamente:
+
+ls /dev/rfcomm0
+
+Se esse arquivo existir, significa que a Raspberry Pi agora está aceitando conexões Bluetooth Serial.
+
+
+---
+
+4️⃣ Testar a Comunicação pelo Celular
+
+Agora, baixe um app de terminal Bluetooth no celular, como:
+
+Serial Bluetooth Terminal
+
+Bluetooth Terminal HC-05
+
+
+Passos:
+
+1. Conecte-se à Raspberry via Bluetooth pelo app.
+
+
+2. Na Raspberry, rode:
+
+sudo cat /dev/rfcomm0
+
+
+3. No app do celular, envie uma mensagem qualquer.
+
+Se a mensagem aparecer no terminal da Raspberry, significa que a conexão Bluetooth Serial está funcionando!
+
+
+
+
+Agora, o Android Studio conseguirá se conectar e enviar comandos para a Raspberry, que por sua vez se comunicará com o WellWatch.
+
+Se ainda não funcionar, me avise com a mensagem de erro exata! 🚀
+
